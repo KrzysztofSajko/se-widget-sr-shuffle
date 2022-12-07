@@ -1,3 +1,6 @@
+/**
+ * --- Script constants ---
+ */
 const userData = {
   channelName: "",
   channelId: "",
@@ -13,14 +16,12 @@ const endpoints = {
     `${userData.seApi}/songrequest/${channel}/queue/${song}`,
 };
 
-window.addEventListener(
-  "onWidgetLoad",
-  ({ detail: { channel, fieldData } }) => {
-    console.log("widget loaded");
-    console.log(channel, fieldData);
-    getUserData(channel, fieldData);
-    console.log(userData);
-  }
+/**
+ * --- Register events ---
+ */
+
+window.addEventListener("onWidgetLoad", ({ detail: { channel, fieldData } }) =>
+  getUserData(channel, fieldData)
 );
 
 function getUserData({ username, id }, { commandTriggerPhrase, jwtToken }) {
@@ -30,14 +31,13 @@ function getUserData({ username, id }, { commandTriggerPhrase, jwtToken }) {
   userData.triggerPhrase = commandTriggerPhrase;
 }
 
-window.addEventListener(
-  "onEventReceived",
-  ({ detail: { event, listener } }) => {
-    console.log("widget got event");
-    console.log(event, listener);
-    onPluginCalled(listener, event.data, pluginHandler);
-  }
+window.addEventListener("onEventReceived", ({ detail: { event, listener } }) =>
+  onPluginCalled(listener, event.data, pluginHandler)
 );
+
+/**
+ * --- Event filters ---
+ */
 
 function onPluginCalled(listener, { text, ...other }, callback) {
   if (
@@ -47,6 +47,14 @@ function onPluginCalled(listener, { text, ...other }, callback) {
   )
     callback(other.nick, getPluginArguments(text));
 }
+
+function onMessageEvent(listener, callback) {
+  if (isMessageEvent(listener)) callback();
+}
+
+/**
+ * --- Register handlers ---
+ */
 
 function pluginHandler(caller, [subcommand, ...args]) {
   const subcommandHandler = {
@@ -59,19 +67,34 @@ function pluginHandler(caller, [subcommand, ...args]) {
   }
 }
 
-async function defaultHandler({ caller }) {
-  console.log(`default handler for plugin called by [${caller}]`);
+/**
+ * --- Handlers ---
+ */
+
+async function defaultHandler() {
   const songs = await getSongQueue();
   console.log(`Got [${songs.length}] songs`);
-  await Promise.all(songs.map((e) => deleteSong(e.songId)));
+  await deleteAllSongs(songs);
   durstenfeldShuffle(songs);
-  await Promise.all(songs.map((e) => queueSong(e.videoId)));
+  await addAllSongs(songs);
 }
 
 function handleMissingSubcommand(caller, subcommand) {
   console.error(
     `Subcommand [${subcommand}] called by [${caller}] is not recognized`
   );
+}
+
+/**
+ * --- API helpers ---
+ */
+
+async function deleteAllSongs(songs) {
+  return await Promise.all(songs.map((e) => deleteSong(e.songId)));
+}
+
+async function addAllSongs(songs) {
+  return await Promise.all(songs.map((e) => addSong(e.videoId)));
 }
 
 async function getSongQueue() {
@@ -84,18 +107,16 @@ async function getSongQueue() {
     songId: el._id,
     videoId: el.videoId,
   }));
-  console.log(songIdList);
   return songIdList;
 }
 
-async function queueSong(videoId) {
-  const data = await sendApiRequest(
+async function addSong(videoId) {
+  await sendApiRequest(
     endpoints.songRequestQueue(userData.channelId),
     "POST",
     userData.apiToken,
     { video: videoId }
   );
-  console.log(data);
 }
 
 async function deleteSong(songId) {
@@ -109,7 +130,6 @@ async function deleteSong(songId) {
       },
     }
   );
-  console.log(response);
 }
 
 async function sendApiRequest(url, method, token, body = null) {
@@ -128,6 +148,10 @@ async function sendApiRequest(url, method, token, body = null) {
   }
 }
 
+/**
+ * --- Conditions ---
+ */
+
 function isPrivilegedUser({ nick, tags }) {
   return nick === userData.channelName || tags.mod === "1";
 }
@@ -140,9 +164,9 @@ function isMessageEvent(listener) {
   return listener === "message";
 }
 
-function onMessageEvent(listener, callback) {
-  if (isMessageEvent(listener)) callback();
-}
+/**
+ * --- Utils ---
+ */
 
 function getPluginArguments(message) {
   return message.split(" ").slice(1);
