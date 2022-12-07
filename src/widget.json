@@ -1,0 +1,11 @@
+{
+    "commandTriggerPhrase": {
+        "type": "text",
+        "label": "Phrase used to trigger the command",
+        "value": "srShuffle"
+    },
+    "jwtToken": {
+        "type": "password",
+        "label": "Your JWT Token"
+    }
+}
